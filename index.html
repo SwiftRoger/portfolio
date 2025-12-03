@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Evidence Board | Portfolio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap');
+
+        body {
+            background-color: #1a1a1a;
+            background-image: radial-gradient(#2a2a2a 1px, transparent 1px);
+            background-size: 30px 30px;
+            font-family: 'Courier Prime', monospace;
+            overflow: hidden; 
+            color: #d1d5db;
+        }
+
+        .handwritten { font-family: 'Special Elite', cursive; }
+
+        /* Board & Evidence Styles */
+        .board-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            overflow: auto; 
+            cursor: grab;
+        }
+        .board-container:active { cursor: grabbing; }
+
+        .evidence-item {
+            position: absolute;
+            transition: all 0.3s ease;
+            box-shadow: 5px 10px 15px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+        .evidence-item:hover {
+            transform: scale(1.05) rotate(0deg) !important; 
+            z-index: 50;
+            box-shadow: 10px 20px 25px rgba(0,0,0,0.8);
+            cursor: pointer;
+        }
+
+        /* Specific Styles */
+        .polaroid {
+            background: white;
+            padding: 10px 10px 40px 10px;
+            transform: rotate(-5deg);
+            color: black;
+        }
+        .sticky-note {
+            background: #fef08a; 
+            color: #333;
+            padding: 20px;
+            width: 220px;
+            transform: rotate(3deg);
+            clip-path: polygon(0% 0%, 100% 0%, 100% 90%, 90% 100%, 0% 100%);
+        }
+        .index-card {
+            background: #fff;
+            background-image: repeating-linear-gradient(transparent, transparent 19px, #a3a3a3 20px);
+            width: 300px;
+            padding: 20px;
+            transform: rotate(2deg);
+            color: black;
+        }
+
+        /* String Layer */
+        .string-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 5;
+        }
+
+        /* Modal Styles */
+        .case-file-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 100; opacity: 0; pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .case-file-overlay.active { opacity: 1; pointer-events: auto; }
+
+        .case-file {
+            background: #f5f5dc; 
+            width: 90%; max-width: 800px; max-height: 90vh;
+            overflow-y: auto; border-radius: 2px;
+            position: relative;
+            transform: translateY(20px); transition: transform 0.3s ease;
+            border: 1px solid #d4d4bc; color: #333;
+        }
+        .case-file-overlay.active .case-file { transform: translateY(0); }
+
+        .folder-tab {
+            position: absolute; top: -30px; left: 0;
+            background: #f5f5dc; padding: 5px 20px;
+            border-radius: 5px 5px 0 0; font-weight: bold;
+            color: #8b0000; border: 1px solid #d4d4bc; border-bottom: none;
+        }
+
+        .tape {
+            position: absolute; background-color: rgba(255, 255, 255, 0.3);
+            width: 80px; height: 25px; top: -10px; left: 50%;
+            transform: translateX(-50%) rotate(2deg);
+            backdrop-filter: blur(1px);
+        }
+
+        /* --- NEW ART STYLES --- */
+        
+        /* The Orange Art Folder on the main board */
+        .art-folder {
+            background: #d97706; /* Amber color */
+            width: 280px; height: 200px;
+            border-radius: 2px;
+            position: absolute;
+            transform: rotate(-4deg);
+            border: 1px solid #92400e;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 5px 10px 15px rgba(0,0,0,0.5);
+            z-index: 10;
+            transition: all 0.3s ease;
+        }
+        .art-folder:hover { transform: scale(1.05) rotate(0deg); z-index: 50; cursor: pointer; }
+        .art-folder::before {
+            content: ''; position: absolute; top: -15px; left: 0;
+            width: 100px; height: 15px; background: #d97706;
+            border-radius: 5px 5px 0 0; border: 1px solid #92400e; border-bottom: none;
+        }
+
+        /* The Full Screen Art Gallery Overlay */
+        /* --- THE 3D MESSY DESK OVERLAY --- */
+        .art-board-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            /* 1. WOODEN TABLE TEXTURE (Replace with your own image if you want) */
+            background-image: url('https://www.transparenttextures.com/patterns/wood-pattern.png');
+            background-color: #3e2723; /* Dark brown base */
+            /* 2. VIGNETTE SHADOW for 3D effect (Dark corners, bright center) */
+            box-shadow: inset 0 0 200px rgba(0,0,0,0.9);
+            z-index: 200;
+            transform: scale(0.8) translateY(50px); opacity: 0; pointer-events: none;
+            transition: all 0.6s cubic-bezier(0.25, 0.8, 0.25, 1); /* Smooth pop-up */
+            overflow: hidden; /* No scrolling, everything is on the desk */
+            perspective: 1000px; /* Adds 3D depth */
+        }
+        .art-board-overlay.active { transform: scale(1) translateY(0); opacity: 1; pointer-events: auto; }
+
+        /* The Container on the desk */
+        .art-grid {
+            position: relative; width: 100%; height: 100%;
+            /* Tilted slightly for a 3D look */
+            transform: rotateX(10deg) scale(0.9);
+            transform-style: preserve-3d;
+        }
+
+        /* --- INDIVIDUAL MESSY ITEMS --- */
+        /* We use absolute positioning to scatter them randomly */
+        .art-piece {
+            position: absolute;
+            background: white; padding: 10px 10px 40px 10px;
+            box-shadow: 5px 10px 20px rgba(0,0,0,0.6);
+            transition: all 0.3s ease;
+            max-width: 250px; cursor: zoom-in;
+        }
+        .art-piece:hover { transform: scale(1.1) rotate(0deg) !important; z-index: 100 !important; box-shadow: 10px 20px 30px rgba(0,0,0,0.8); }
+
+        /* --- MANUAL POSITIONING FOR MESSY LOOK --- */
+        /* You have to manually place them to look messy */
+        
+        /* --- 12 ITEMS SCATTER LOGIC --- */
+        
+        /* Top Row */
+        /* --- 12 ITEMS SCATTER LOGIC (FIXED) --- */
+        
+        /* Top Row */
+        .art-piece:nth-child(1) { top: 10%; left: 15%; transform: rotate(-12deg); z-index: 5; }
+        .art-piece:nth-child(2) { top: 5%; left: 30%; transform: rotate(4deg); z-index: 4; }
+        .art-piece:nth-child(3) { top: 8%; right: 25%; transform: rotate(-5deg); z-index: 3; }
+        .art-piece:nth-child(4) { top: 15%; right: 5%; transform: rotate(10deg); z-index: 5; }
+
+        /* Middle Row - Shifted slightly up */
+        .art-piece:nth-child(5) { top: 40%; left: 8%; transform: rotate(15deg); z-index: 6; }
+        .art-piece:nth-child(6) { top: 35%; left: 35%; transform: rotate(-3deg); z-index: 10; } /* Center piece on top */
+        .art-piece:nth-child(7) { top: 42%; right: 30%; transform: rotate(6deg); z-index: 7; }
+        .art-piece:nth-child(8) { top: 38%; right: 8%; transform: rotate(-12deg); z-index: 6; }
+
+        /* Bottom Row - Moved UP significantly so they don't get cut off */
+        .art-piece:nth-child(9) { top: 45%; left: 15%; transform: rotate(-45deg); z-index: 9; }
+        .art-piece:nth-child(10) { top: 50%; left: 40%; transform: rotate(20deg); z-index: 5; }
+        .art-piece:nth-child(11) { top: 52%; right: 25%; transform: rotate(-8deg); z-index: 8; }
+        .art-piece:nth-child(12) { top: 36%; right: 15%; transform: rotate(3deg); z-index: 9; }
+
+        /* Lightbox (Zoom View) */
+        .lightbox {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); z-index: 300;
+            display: none; justify-content: center; align-items: center;
+        }
+        .lightbox.active { display: flex; }
+        .lightbox img { max-width: 90%; max-height: 90vh; border: 5px solid white; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
+
+        /* --- THE SECRET RAT --- */
+        /* --- THE ANIMATED RAT --- */
+        .rat {
+            position: fixed;
+            bottom: 10px;
+            left: -150px; /* Start off screen */
+            width: 60px; /* Adjust size based on your GIF */
+            height: auto;
+            z-index: 999;
+            pointer-events: none;
+            /* Run animation: 15s total, infinite loop */
+            animation: ratRun 15s linear infinite;
+        }
+
+        @keyframes ratRun {
+            /* RUNNING RIGHT */
+            0%   { left: -150px; transform: scaleX(1); } /* Normal direction */
+            40%  { left: 40%; } 
+            
+            /* PAUSE & SNIFF (Stop moving, just wiggle) */
+            41%  { left: 40%; transform: scaleX(1) rotate(-5deg); }
+            42%  { left: 40%; transform: scaleX(1) rotate(5deg); }
+            43%  { left: 40%; transform: scaleX(1) rotate(0deg); }
+            45%  { left: 40%; }
+
+            /* RUNNING RIGHT AGAIN */
+            50%  { left: 60%; } 
+            
+            /* TURN AROUND (Flip the image) */
+            51%  { left: 60%; transform: scaleX(-1); } 
+            
+            /* RUNNING LEFT (Backwards) */
+            100% { left: -150px; transform: scaleX(-1); } 
+        }
+        
+    </style>
+</head>
+<body>
+    <!-- THE RAT -->
+    <img src="C:\Users\USER\Documents\portfolio\images\thatrunningrat.gif" class="rat" alt="Running Rat">
+
+    <svg class="string-layer" id="connections"></svg>
+
+    <!-- BOARD AREA -->
+    <div class="board-container" id="board">
+        
+        <!-- 5. NEW: ART SHOWCASE (The Folder Item) -->
+        <div class="art-folder top-16 left-1/2 transform -translate-x-1/2 md:translate-x-40 cursor-pointer" onclick="openArtBoard()">
+            <div class="text-center">
+                <h1 class="text-4xl font-bold text-yellow-900 tracking-wider mb-1" style="font-family: 'Special Elite'">ARTWORK</h1>
+                <div class="bg-red-800 text-white text-xs px-2 py-1 inline-block transform -rotate-2">CONFIDENTIAL</div>
+                <p class="text-xs text-yellow-900 mt-2 font-mono">Click to open gallery</p>
+            </div>
+        </div>
+
+        <!-- CENTER TITLE -->
+        <div class="evidence-item absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center p-8 bg-black border-4 border-white text-white shadow-2xl" 
+             style="transform: translate(-50%, -50%) rotate(0deg); width: 350px;">
+            <h1 class="text-4xl font-bold tracking-widest uppercase mb-2">CASE FILE:</h1>
+            <h2 class="text-3xl handwritten text-red-600">THE_CREATOR</h2>
+            <p class="text-xs text-gray-400 mt-4 tracking-widest">CLASSIFIED // EYES ONLY</p>
+        </div>
+
+        <!-- 1. THE ACTOR (Polaroid) -->
+        <div class="evidence-item polaroid top-20 left-10 md:left-1/4 cursor-pointer" onclick="openCase('actor')">
+            <div class="tape"></div>
+            <!-- CHANGE THE SRC BELOW TO YOUR PHOTO -->
+            <div class="w-48 h-48 bg-gray-800 mb-2 overflow-hidden relative group">
+                <img src="C:\Users\USER\Documents\portfolio\images\headshot.jpg" alt="Actor" class="object-cover w-full h-full grayscale group-hover:grayscale-0 transition duration-500">
+            </div>
+            <p class="handwritten text-center text-xl font-bold">The Actor</p>
+        </div>
+
+        <!-- 2. THE CODER (Index Card) -->
+        <div class="evidence-item index-card bottom-32 right-10 md:right-1/3 cursor-pointer" onclick="openCase('coder')">
+            <h3 class="text-red-700 font-bold uppercase border-b-2 border-red-700 mb-2">Skill Set</h3>
+            <ul class="list-disc pl-5 text-sm leading-relaxed font-mono text-gray-800">
+                <li>Graphic Design (Expert)</li>
+                <li>IT / Coding (In Progress)</li>
+                <li>Video Editing</li>
+                <li>Marathon Runner</li>
+            </ul>
+        </div>
+
+        <!-- 3. MOTIVATION (Sticky Note) -->
+        <div class="evidence-item sticky-note top-32 right-10 cursor-pointer" onclick="openCase('motivation')">
+            <p class="handwritten text-lg mb-2 font-bold text-red-900">"Why he does it?"</p>
+            <p class="text-sm font-mono">To prove them all wrong. To build a legacy out of nothing.</p>
+        </div>
+
+        <!-- 4. RUNNER (Ticket) -->
+        <div class="evidence-item bg-gray-200 p-4 border-2 border-dashed border-gray-500 bottom-20 left-10 md:left-40 transform -rotate-12 hover:rotate-0 cursor-pointer w-64 text-black" onclick="openCase('runner')">
+             <div class="flex justify-between items-center border-b border-black pb-2 mb-2">
+                 <span class="font-bold">SIEM REAP RUN</span>
+             </div>
+             <div class="text-center">
+                 <h4 class="text-4xl font-bold tracking-tighter">10 KM</h4>
+                 <p class="text-xs uppercase mt-1 font-bold">Gold Medal Finish</p>
+             </div>
+        </div>
+
+    </div>
+
+    <!-- MODAL POPUP -->
+    <div class="case-file-overlay" id="modalOverlay">
+        <div class="case-file p-8 md:p-12 relative" onclick="event.stopPropagation()">
+            <div class="folder-tab">EVIDENCE #<span id="evidenceId">001</span></div>
+            <button onclick="closeCase()" class="absolute top-4 right-4 text-2xl font-bold text-red-800 hover:text-red-600">&times;</button>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Text Side -->
+                <div class="border-r border-gray-300 pr-8">
+                    <h2 class="text-4xl font-bold mb-2 uppercase text-gray-800 tracking-tighter" id="modalTitle">TITLE</h2>
+                    <div class="w-full h-1 bg-gray-800 mb-6"></div>
+                    <p class="text-gray-700 leading-relaxed font-mono text-sm md:text-base whitespace-pre-line" id="modalDesc"></p>
+                </div>
+                
+                <!-- Image Side -->
+                <div class="flex flex-col justify-center items-center bg-gray-100 p-4 border border-gray-300 transform rotate-1 shadow-lg">
+                    <!-- The Image Container -->
+                    <div id="modalContent" class="w-full text-center">
+                        <!-- Image injected here by JS -->
+                    </div>
+                    <p class="text-sm italic text-gray-600 font-mono mt-2">Exhibit A: Photographic Evidence</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- === ART BOARD OVERLAY === -->
+    <div class="art-board-overlay" id="artOverlay">
+        <button onclick="closeArtBoard()" class="fixed top-8 right-8 z-50 bg-red-600 text-white px-6 py-2 font-bold font-mono border-2 border-white hover:bg-red-700">CLOSE [X]</button>
+        
+        <h1 class="text-center text-white text-5xl font-bold mt-12 tracking-widest uppercase">Visual Evidence</h1>
+        <p class="text-center text-gray-400 font-mono mb-8">Subject's creative output.</p>
+
+        <!-- THE ART GRID -->
+        <!-- THE MESSY GRID (12 ITEMS) -->
+        <div class="art-grid">
+            
+            <!-- 1. The Sketch -->
+            <div class="art-piece" onclick="zoomImage(this)">
+                <img src="C:\Users\USER\Documents\portfolio\images\art1.jpg" onerror="this.src='https://via.placeholder.com/300x500?text=SKETCH'" class="w-full h-64 object-cover">
+                <p class="handwritten text-center mt-2 text-lg">"ARt-5123"</p>
+            </div>
+
+            <!-- 2. Concept Art -->
+            <div class="art-piece" onclick="zoomImage(this)">
+                <img src="C:\Users\USER\Documents\portfolio\images\art2.jpg" class="w-full h-48 object-cover">
+                <p class="handwritten text-center mt-2 text-lg">Concept #2</p>
+            </div>
+
+            <!-- 3. Photography -->
+            <div class="art-piece" onclick="zoomImage(this)">
+                <img src="C:\Users\USER\Documents\portfolio\images\art3.jpg" class="w-full h-56 object-cover">
+                <p class="handwritten text-center mt-2 text-lg">Concept</p>
+            </div>
+
+            <!-- 4. Poster Design -->
+            <div class="art-piece" onclick="zoomImage(this)">
+                <img src="C:\Users\USER\Documents\portfolio\images\art4.jpg" class="w-full h-64 object-cover">
+                <p class="handwritten text-center mt-2 text-lg">Work</p>
+            </div>
+
+            <!-- 5. Character Design -->
+            <div class="art-piece" onclick="zoomImage(this)">
+                <img src="C:\Users\USER\Documents\portfolio\images\art5.jpg" class="w-full h-40 object-cover">
+                <p class="handwritten text-center mt-2 text-lg">Character</p>
+            </div>
+
+            <!-- 6. Mood Board -->
+            <div class="art-piece" onclick="zoomImage(this)">
+                <img src="C:\Users\USER\Documents\portfolio\images\art6.jpg" class="w-full h-40 object-cover">
+                <p class="handwritten text-center mt-2 text-lg">Idk what this is</p>
+            </div>
+
+            <!-- 7. Typography -->
+            <div class="art-piece" onclick="zoomImage(this)">
+                <img src="C:\Users\USER\Documents\portfolio\images\art7.jpg" class="w-full h-56 object-cover">
+                <p class="handwritten text-center mt-2 text-lg">Typoart</p>
+            </div>
+
+            <!-- 8. UI Design -->
+            <div class="art-piece" onclick="zoomImage(this)">
+                <img src="C:\Users\USER\Documents\portfolio\images\art8.jpg" class="w-full h-32 object-cover">
+                <p class="handwritten text-center mt-2 text-lg">sketch again</p>
+            </div>
+
+            <!-- 9. Sketchbook Page -->
+            <div class="art-piece" onclick="zoomImage(this)">
+                <img src="C:\Users\USER\Documents\portfolio\images\art9.jpg" class="w-full h-60 object-cover">
+                <p class="handwritten text-center mt-2 text-lg">Rough Ideas</p>
+            </div>
+
+            <!-- 10. Abstract -->
+            <div class="art-piece" onclick="zoomImage(this)">
+                <img src="C:\Users\USER\Documents\portfolio\images\art10.jpg" class="w-full h-48 object-cover">
+                <p class="handwritten text-center mt-2 text-lg">Rough sketch</p>
+            </div>
+
+            <!-- 11. Film Still -->
+            <div class="art-piece" onclick="zoomImage(this)">
+                <img src="C:\Users\USER\Documents\portfolio\images\art11.jpg" class="w-full h-32 object-cover">
+                <p class="handwritten text-center mt-2 text-lg">Art</p>
+            </div>
+
+            <!-- 12. The ID Card -->
+            <div class="art-piece" onclick="zoomImage(this)">
+                <img src="C:\Users\USER\Documents\portfolio\images\art12.jpg" class="w-full h-24 object-cover">
+                <p class="handwritten text-center mt-2 text-lg">Clearance</p>
+            </div>
+
+        </div>
+
+            <!-- ART PIECE 2 -->
+            <div class="art-piece" onclick="zoomImage(this)">
+        
+                <!-- CHANGE IMAGE HERE -->
+                <img src="C:\Users\USER\Documents\portfolio\images\art13.jpg" class="w-full h-48 object-cover">
+                <p class="handwritten text-center mt-2 text-lg">Sketch #2</p>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- LIGHTBOX -->
+    <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+        <img id="lightboxImg" src="">
+    </div>
+
+    <script>
+        // --- ADD YOUR DATA HERE ---
+        // Put your image file names in the 'image' field (e.g. 'images/me.jpg')
+        const cases = {
+            'actor': {
+                id: 'ACT-01',
+                title: 'THE ACTOR',
+                desc: 'Subject demonstrates high emotional range. Obsessed with authenticity.\n\nStats:\n- Range: is bro taking class?\n- Method: Err... \n- Status: Hope so',
+                image: 'C:/Users/USER/Documents/portfolio/images/headshot1.jpg' // CHANGE THIS
+            },
+            'coder': {
+                id: 'DEV-99',
+                title: 'THE BUILDER',
+                desc: 'Jack of all trades, but master of nones.\n\nProjects:\n- Vibe Coder\n- Artist\n- bunch of ass film never release\n- Wannabe streamer but failed \n- Video editor \n- procrasinate at every job',
+                image: 'C:/Users/USER/Documents/portfolio/images/skillset.jpg' // CHANGE THIS
+            },
+            'motivation': {
+                id: 'PSYCH-00',
+                title: 'THE MOTIVE',
+                desc: 'Driven by complex internal factors. Wants to prove the "Hollywood Suckers" wrong.',
+                image: 'C:/Users/USER/Documents/portfolio/images/motivation.webp' // CHANGE THIS
+            },
+            'runner': {
+                id: 'PHYS-10',
+                title: 'THE ENDURANCE',
+                desc: 'Completed 10km Siem Reap run. \n\n"Pretty tired I guess, but i finished it."',
+                image: 'C:/Users/USER/Documents/portfolio/images/marathon.jpg' // CHANGE THIS
+            }
+        };
+
+        // Function to open the case
+        function openCase(key) {
+            const data = cases[key];
+            if(!data) return;
+
+            document.getElementById('evidenceId').innerText = data.id;
+            document.getElementById('modalTitle').innerText = data.title;
+            document.getElementById('modalDesc').innerText = data.desc;
+            
+            // INJECT THE IMAGE
+            const contentDiv = document.getElementById('modalContent');
+            contentDiv.innerHTML = `<img src="${data.image}" class="w-full h-auto border-2 border-white shadow-md grayscale hover:grayscale-0 transition">`;
+            
+            document.getElementById('modalOverlay').classList.add('active');
+        }
+
+        function closeCase() {
+            document.getElementById('modalOverlay').classList.remove('active');
+        }
+
+        document.getElementById('modalOverlay').addEventListener('click', closeCase);
+
+        // Strings Logic (Same as before)
+        function drawStrings() {
+            const svg = document.getElementById('connections');
+            const items = document.querySelectorAll('.evidence-item');
+            const centerTitle = items[0]; 
+            let linesHTML = '';
+            
+            const centerRect = centerTitle.getBoundingClientRect();
+            const centerX = centerRect.left + centerRect.width / 2;
+            const centerY = centerRect.top + centerRect.height / 2;
+
+            items.forEach((item, index) => {
+                if (index === 0) return; 
+                const rect = item.getBoundingClientRect();
+                const x = rect.left + rect.width / 2;
+                const y = rect.top + rect.height / 2;
+                const midX = (centerX + x) / 2;
+                const midY = (centerY + y) / 2 + 50;
+
+                linesHTML += `<path d="M${centerX},${centerY} Q${midX},${midY} ${x},${y}" stroke="#b91c1c" stroke-width="2" fill="none" style="filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.5)); opacity: 0.8;"/>`;
+                linesHTML += `<circle cx="${centerX}" cy="${centerY}" r="3" fill="#333" />`;
+            });
+            svg.innerHTML = linesHTML;
+        }
+        window.addEventListener('load', drawStrings);
+        window.addEventListener('resize', drawStrings);
+
+        // --- NEW ART FUNCTIONS ---
+
+        function openArtBoard() {
+            document.getElementById('artOverlay').classList.add('active');
+        }
+
+        function closeArtBoard() {
+            document.getElementById('artOverlay').classList.remove('active');
+        }
+
+        function zoomImage(element) {
+            // Finds the image inside the clicked art piece
+            const img = element.querySelector('img').src;
+            const lightbox = document.getElementById('lightbox');
+            document.getElementById('lightboxImg').src = img;
+            lightbox.classList.add('active');
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.remove('active');
+        }
+
+    </script>
+</body>
+</html>
